@@ -188,7 +188,7 @@ namespace Lykke.Service.Qtum.Api.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IList<Coin>> GetUnspentOutputsAsync(string address)
+        public async Task<IList<(long, Coin)>> GetUnspentOutputsAsync(string address)
         {
             var utxos = await _policy.ExecuteAsync(async () =>
             {
@@ -200,10 +200,10 @@ namespace Lykke.Service.Qtum.Api.Services
                     .Where(p => p.Confirmations >= confirmationsCount)
                     .Select(source =>
                     {
-                        return new Coin(
+                        return (source.Confirmations, new Coin(
                             new OutPoint(uint256.Parse(source.Txid), source.Vout),
                             new TxOut(new Money(ulong.Parse(source.Satoshis)),
-                            source.ScriptPubKey.ToScript()));
+                            source.ScriptPubKey.ToScript())));
                     }).ToList();
         }        
     }

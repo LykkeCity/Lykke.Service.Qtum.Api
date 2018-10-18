@@ -225,12 +225,12 @@ namespace Lykke.Service.Qtum.Api.Services
             var requiredBalance = amount + (includeFee ? Money.Zero : calculatedFee);
 
             if (balance < requiredBalance)
-                throw new Exception(
-                    $"The sum of total applicable outputs is less than the required : {requiredBalance} satoshis.");
+                throw new NotEnoughFundsException(
+                    $"The sum of total applicable outputs is less than the required : {requiredBalance} satoshis.", null);
 
             if (includeFee)
             {
-                if (calculatedFee > balance)
+                if (calculatedFee > amount)
                     throw new AmountIsTooSmallException(
                         $"The sum of total applicable outputs is less than the required fee:{calculatedFee} satoshis.");
                 builder.SubtractFees();

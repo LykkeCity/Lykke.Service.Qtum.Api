@@ -184,7 +184,7 @@ namespace Lykke.Service.Qtum.Api.Services
 
             } while (needAdditionalRequest);
 
-            return result.Where(p => p.Confirmations >= _confirmationsCount).ToList();
+            return result?.Where(p => p.Confirmations >= _confirmationsCount).ToList();
         }
 
         /// <inheritdoc/>

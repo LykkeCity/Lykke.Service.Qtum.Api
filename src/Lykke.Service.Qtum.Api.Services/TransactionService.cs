@@ -160,17 +160,39 @@ namespace Lykke.Service.Qtum.Api.Services
             return await _transactionBodyRepository.CreateIfNotExistsAsync(transactionBody);
         }
 
-        private async Task<IEnumerable<Coin>> GetFilteredUnspentOutputsAsync(string address)
+        private async Task<IEnumerable<Coin>> GetFilteredUnspentOutputsAsync(string address, string txAmount, bool includeFee)
         {
-            return await Filter(await _blockchainService.GetUnspentOutputsAsync(address));
+            var amount = long.Parse(txAmount);
+            return await Filter(await _blockchainService.GetUnspentOutputsAsync(address), amount, includeFee);
         }
 
-        private async Task<IEnumerable<Coin>> Filter(IList<Coin> coins)
+        /// <summary>
+        /// Filter UTXO using following rules:
+        /// - take utxo since oldest
+        /// - take only suffient utxo's amount to complete transaction (add with some fee if not include fee)
+        /// - if not include fee, add FeeSettings.GetMaxFee()
+        /// </summary>
+        /// <param name="coins">filtering coin</param>
+        /// <param name="requiredAmount">target tx amount</param>
+        /// <param name="includeFee"></param>
+        /// <returns></returns>
+        private async Task<IEnumerable<Coin>> Filter(IList<(long, Coin)> coins, long requiredAmount, bool includeFee)
         {
-            var spentOutputs = new HashSet<OutPoint>(
-                (await _spentOutputRepository.GetSpentOutputs(coins.Select(o => new Output(o.Outpoint))))
-                .Select(o => new OutPoint(uint256.Parse(o.TransactionHash), o.N)));
-            return coins.Where(c => !spentOutputs.Contains(c.Outpoint));
+            var coinsForSpending = new List<Coin>();
+            long coinsSum = 0;
+
+            // choose utxos from the oldest (by confirmation count) so that their sum will be >= requiredAmount + maxFee (if needed)
+            var minAmount = requiredAmount + (includeFee ? 0 : _feeService.GetMaxFee());
+
+            foreach (var coin in coins)
+            {
+                coinsForSpending.Add(coin.Item2);
+                coinsSum += coin.Item2.Amount.Satoshi;
+
+                if (coinsSum >= minAmount)
+                    break;
+            }
+            return coinsForSpending;
         }
 
         /// <inheritdoc/>
@@ -178,10 +200,10 @@ namespace Lykke.Service.Qtum.Api.Services
         {
             var builder = new TransactionBuilder();
 
-            var coins = (await GetFilteredUnspentOutputsAsync(transactionMeta.FromAddress)).ToList();
+            var coins = (await GetFilteredUnspentOutputsAsync(transactionMeta.FromAddress, transactionMeta.Amount, transactionMeta.IncludeFee)).ToList();
             var balance = coins.Select(o => o.Amount).Sum(o => o.Satoshi);
 
-            return await SendWithChange(builder, coins,new Money(balance), transactionMeta);
+            return await SendWithChange(builder, coins, new Money(balance), transactionMeta);
         }
 
         private async Task<string> SendWithChange(TransactionBuilder builder, List<Coin> coins, Money balance, TTransactionMeta transactionMeta)
@@ -203,8 +225,8 @@ namespace Lykke.Service.Qtum.Api.Services
             var requiredBalance = amount + (includeFee ? Money.Zero : calculatedFee);
 
             if (balance < requiredBalance)
-                throw new Exception(
-                    $"The sum of total applicable outputs is less than the required : {requiredBalance} satoshis.");
+                throw new NotEnoughFundsException(
+                    $"The sum of total applicable outputs is less than the required : {requiredBalance} satoshis.", null);
 
             if (includeFee)
             {

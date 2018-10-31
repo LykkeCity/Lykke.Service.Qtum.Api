@@ -358,62 +358,54 @@ namespace Lykke.Service.Qtum.Api.Services
             {
                 throw new ArgumentException($"{nameof(txBody)} with {operationId} not found");
             }
-            
-            try
-            {
-                if (txMeta.State == TransactionState.Signed)
-                {
-                    var broadcactResult =
-                        await _blockchainService.BroadcastSignedTransactionAsync(txBody.SignedTransaction);
 
-                    if (broadcactResult.error != null)
-                    {
-                        if (broadcactResult.error.code == -27) //transaction already in block chain
-                        {
-                            txMeta.State = TransactionState.Broadcasted;
-                        }
-                        else
-                        {
-                            txMeta.Error = broadcactResult.error.message;
-                            txMeta.State = TransactionState.Failed;
-                        }
-                    }
-                    else
+            if (txMeta.State == TransactionState.Signed)
+            {
+                var broadcactResult =
+                    await _blockchainService.BroadcastSignedTransactionAsync(txBody.SignedTransaction);
+
+                if (broadcactResult.error != null)
+                {
+                    if (broadcactResult.error.code == -27) //transaction already in block chain
                     {
                         txMeta.State = TransactionState.Broadcasted;
                     }
-                }
-                
-                if (txMeta.State == TransactionState.Broadcasted)
-                {
-                    var txInfo = await _blockchainService.GetTransactionInfoByIdAsync(txMeta.TxId);
-
-                    if (txInfo != null)
-                    {
-                        var confirmationsCount = _confirmationsCount <= 0 ? 1 : _confirmationsCount; // While transaction is unconfirmed, txInfo.Blockheight is incorrect (-1)
-                        if (txInfo.Confirmations >= confirmationsCount)
-                        {
-                            txMeta.State = TransactionState.Confirmed;
-                            txMeta.Hash = txInfo.Blockhash;
-                            txMeta.CompleteTimestamp = UnixTimeHelper.UnixTimeStampToDateTime(txInfo.Blocktime);
-                            txMeta.BlockCount = txInfo.Blockheight;
-                        }
-                    }
                     else
                     {
-                        txMeta.Error = $"Tx not found by id :{txMeta.TxId}";
+                        txMeta.Error = broadcactResult.error.message;
                         txMeta.State = TransactionState.Failed;
                     }
                 }
+                else
+                {
+                    txMeta.State = TransactionState.Broadcasted;
+                }
+            }
 
-                await UpdateTransactionMeta(txMeta);
-                return txMeta;
-            }
-            catch (Exception e)
+            if (txMeta.State == TransactionState.Broadcasted)
             {
-                _log.Error($"failed to update tx info for operation: {operationId}", e);
-                return txMeta;
+                var txInfo = await _blockchainService.GetTransactionInfoByIdAsync(txMeta.TxId);
+
+                if (txInfo != null)
+                {
+                    var confirmationsCount = _confirmationsCount <= 0 ? 1 : _confirmationsCount; // While transaction is unconfirmed, txInfo.Blockheight is incorrect (-1)
+                    if (txInfo.Confirmations >= confirmationsCount)
+                    {
+                        txMeta.State = TransactionState.Confirmed;
+                        txMeta.Hash = txInfo.Blockhash;
+                        txMeta.CompleteTimestamp = UnixTimeHelper.UnixTimeStampToDateTime(txInfo.Blocktime);
+                        txMeta.BlockCount = txInfo.Blockheight;
+                    }
+                }
+                else
+                {
+                    txMeta.Error = $"Tx not found by id :{txMeta.TxId}";
+                    txMeta.State = TransactionState.Failed;
+                }
             }
+
+            await UpdateTransactionMeta(txMeta);
+            return txMeta;
         }
 
         /// <inheritdoc/>

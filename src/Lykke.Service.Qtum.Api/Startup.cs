@@ -9,6 +9,8 @@ using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using AsyncFriendlyStackTrace;
+using Lykke.Common.Api.Contract.Responses;
 
 namespace Lykke.Service.Qtum.Api
 {
@@ -73,6 +75,7 @@ namespace Lykke.Service.Qtum.Api
             app.UseLykkeConfiguration(options =>
             {
                 options.SwaggerOptions = _swaggerOptions;
+                options.DefaultErrorHandler = ex => new ErrorResponse {ErrorMessage = ex.ToAsyncString()};
 
                 // TODO: Configure additional middleware for eg authentication or maintenancemode checks
                 /*

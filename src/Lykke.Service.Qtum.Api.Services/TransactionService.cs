@@ -334,6 +334,8 @@ namespace Lykke.Service.Qtum.Api.Services
                 OperationId = operationId
             };
 
+            await _blockchainService.BroadcastSignedTransactionAsync(signedTransaction);
+
             // TODO it's useless without job
             await CreateObservationAsync(transactionObservation);
             

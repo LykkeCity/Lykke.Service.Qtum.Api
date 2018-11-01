@@ -171,13 +171,6 @@ namespace Lykke.Service.Qtum.Api.Controllers
                         "Transaction with specified operationId and signedTransaction has already been broadcasted"));
             }
 
-            var txMeta = await _transactionService.UpdateTransactionBroadcastStatusAsync(broadcastTransactionRequest.OperationId);
-
-            if (txMeta.State == TransactionState.Failed)
-            {
-                return StatusCode((int) HttpStatusCode.BadRequest, ErrorResponse.Create("buildingShouldBeRepeated"));
-            }
-
             _log.Info(nameof(BroadcastSignedTransactionAsync),
                 JObject.FromObject(broadcastTransactionRequest).ToString(),
                 $"Transaction broadcasted {broadcastTransactionRequest.OperationId}");

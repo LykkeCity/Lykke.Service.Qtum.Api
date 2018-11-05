@@ -363,7 +363,24 @@ namespace Lykke.Service.Qtum.Api.Services
             
             try
             {
-                if (txMeta.State == TransactionState.Signed)
+                var txInfo = await _blockchainService.GetTransactionInfoByIdAsync(txMeta.TxId);
+                if (txInfo != null)
+                {
+                    if (txInfo.Confirmations >= _confirmationsCount)
+                    {
+                        txMeta.State = TransactionState.Confirmed;
+                        txMeta.Hash = txInfo.Blockhash;
+                        txMeta.CompleteTimestamp = UnixTimeHelper.UnixTimeStampToDateTime(txInfo.Blocktime);
+                        txMeta.BlockCount = txInfo.Blockheight;
+                    }
+                    else
+                    {
+                        txMeta.State = TransactionState.Broadcasted;
+                    }
+                }
+
+
+                if (txInfo == null)
                 {
                     var broadcactResult =
                         await _blockchainService.BroadcastSignedTransactionAsync(txBody.SignedTransaction);
@@ -386,27 +403,6 @@ namespace Lykke.Service.Qtum.Api.Services
                     }
                 }
                 
-                if (txMeta.State == TransactionState.Broadcasted)
-                {
-                    var txInfo = await _blockchainService.GetTransactionInfoByIdAsync(txMeta.TxId);
-
-                    if (txInfo != null)
-                    {
-                        var confirmationsCount = _confirmationsCount <= 0 ? 1 : _confirmationsCount; // While transaction is unconfirmed, txInfo.Blockheight is incorrect (-1)
-                        if (txInfo.Confirmations >= confirmationsCount)
-                        {
-                            txMeta.State = TransactionState.Confirmed;
-                            txMeta.Hash = txInfo.Blockhash;
-                            txMeta.CompleteTimestamp = UnixTimeHelper.UnixTimeStampToDateTime(txInfo.Blocktime);
-                            txMeta.BlockCount = txInfo.Blockheight;
-                        }
-                    }
-                    else
-                    {
-                        txMeta.Error = $"Tx not found by id :{txMeta.TxId}";
-                        txMeta.State = TransactionState.Failed;
-                    }
-                }
 
                 await UpdateTransactionMeta(txMeta);
                 return txMeta;

@@ -44,9 +44,10 @@ namespace Lykke.Service.Qtum.Api.Services
             }
             else
             {
+
                 if (response.StatusCode == HttpStatusCode.InternalServerError)
                 {
-                    return (null, new ErrorResponse { message = response.Data?.error?.message, code = response.Data?.error?.code });
+                    return (null, new ErrorResponse { message = response.Data?.error?.message ?? response.Content, code = response.Data?.error?.code });
                 }
                 else if (response.ResponseStatus == ResponseStatus.Error)
                 {

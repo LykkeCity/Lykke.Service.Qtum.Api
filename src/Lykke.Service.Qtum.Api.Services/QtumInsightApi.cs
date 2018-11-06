@@ -134,6 +134,11 @@ namespace Lykke.Service.Qtum.Api.Services
                 return JObject.Parse(response.Content).ToObject<TxInfo>();
             }
 
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
             if (response.ResponseStatus == ResponseStatus.Error)
             {
                 throw new HttpRequestException("Network transport error (network is down, failed DNS lookup, etc)", response.ErrorException);

@@ -123,7 +123,7 @@ namespace Lykke.Service.Qtum.Api.Services
                 var result = await _insightApiService.GetTxByIdAsync(new TxId { txid = id}); 
                 return result;                          
             });
-
+            
             return await policyResult;
         }
 
